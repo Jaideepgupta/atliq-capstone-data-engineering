@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: silver
+    database: atliq
+    schema: silver
+    tables:
+      - name: customers
+      - name: orders
+      - name: order_items
+      - name: products
+      - name: payments
+      - name: marketing_spend
+      - name: supplier_price_list
