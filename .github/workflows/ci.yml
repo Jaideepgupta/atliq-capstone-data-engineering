@@ -28,6 +28,12 @@ jobs:
         run: dbt deps
         working-directory: dbt_project
 
+      - name: Check Databricks secrets
+        run: |
+          test -n "$DATABRICKS_HOST" && echo "HOST is set" || echo "HOST is MISSING"
+          test -n "$DATABRICKS_HTTP_PATH" && echo "HTTP_PATH is set" || echo "HTTP_PATH is MISSING"
+          test -n "$DATABRICKS_TOKEN" && echo "TOKEN is set" || echo "TOKEN is MISSING"
+
       - name: Build and test dbt
         run: dbt build --target ci --profiles-dir .
         working-directory: dbt_project
