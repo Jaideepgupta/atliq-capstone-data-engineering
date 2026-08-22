@@ -6,3 +6,5 @@ dbt_project/logs/
 __pycache__/
 *.pyc
 .env
+
+**/.user.yml
