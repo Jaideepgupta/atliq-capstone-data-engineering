@@ -34,6 +34,18 @@ jobs:
           test -n "$DATABRICKS_HTTP_PATH" && echo "HTTP_PATH is set" || echo "HTTP_PATH is MISSING"
           test -n "$DATABRICKS_TOKEN" && echo "TOKEN is set" || echo "TOKEN is MISSING"
 
+          echo "HOST length: ${#DATABRICKS_HOST}"
+          echo "HTTP_PATH length: ${#DATABRICKS_HTTP_PATH}"
+
+          case "$DATABRICKS_HTTP_PATH" in
+            /sql/1.0/warehouses/*)
+              echo "HTTP_PATH format looks correct"
+              ;;
+            *)
+              echo "HTTP_PATH format is WRONG"
+              ;;
+          esac
+
       - name: Build and test dbt
         run: dbt build --target ci --profiles-dir .
         working-directory: dbt_project
