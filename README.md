@@ -428,8 +428,6 @@ Secrets are not hard-coded in the repository.
 
 The ADF master pipeline includes `Audit Start` and `Audit End` stored-procedure activities. These write execution metadata such as pipeline name, run ID, start/end timestamps and status to the Azure SQL audit table through `[etl].[usp_log_pipeline_audit]`.
 
-> 📝 **Not yet implemented:** automated failure alerting (email/webhook) on nightly job failure — see [Known Gaps & Roadmap](#-known-gaps--roadmap).
-
 CI/CD evidence is available in: `evidence/M7_CICD/`
 
 ---
