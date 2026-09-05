@@ -1,0 +1,281 @@
+{
+    "name": "pl_sql_to_raw",
+    "properties": {
+        "activities": [
+            {
+                "name": "ForEach1",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "Lookup1",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Lookup1').output.value",
+                        "type": "Expression"
+                    },
+                    "activities": [
+                        {
+                            "name": "If Condition1",
+                            "type": "IfCondition",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "expression": {
+                                    "value": "@equals(item().load_type,'incremental')",
+                                    "type": "Expression"
+                                },
+                                "ifFalseActivities": [
+                                    {
+                                        "name": "Copy data2",
+                                        "type": "Copy",
+                                        "dependsOn": [],
+                                        "policy": {
+                                            "timeout": "0.12:00:00",
+                                            "retry": 0,
+                                            "retryIntervalInSeconds": 30,
+                                            "secureOutput": false,
+                                            "secureInput": false
+                                        },
+                                        "userProperties": [],
+                                        "typeProperties": {
+                                            "source": {
+                                                "type": "AzureSqlSource",
+                                                "sqlReaderQuery": {
+                                                    "value": "SELECT *\nFROM @{item().source_schema}.@{item().table_name}",
+                                                    "type": "Expression"
+                                                },
+                                                "queryTimeout": "02:00:00",
+                                                "partitionOption": "None"
+                                            },
+                                            "sink": {
+                                                "type": "ParquetSink",
+                                                "storeSettings": {
+                                                    "type": "AzureBlobFSWriteSettings",
+                                                    "copyBehavior": "PreserveHierarchy"
+                                                },
+                                                "formatSettings": {
+                                                    "type": "ParquetWriteSettings"
+                                                }
+                                            },
+                                            "enableStaging": false,
+                                            "translator": {
+                                                "type": "TabularTranslator",
+                                                "typeConversion": true,
+                                                "typeConversionSettings": {
+                                                    "allowDataTruncation": true,
+                                                    "treatBooleanAsNumber": false
+                                                }
+                                            }
+                                        },
+                                        "inputs": [
+                                            {
+                                                "referenceName": "DS_SQL_Source",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "schema_name": "dbo",
+                                                    "table_name": "customers"
+                                                }
+                                            }
+                                        ],
+                                        "outputs": [
+                                            {
+                                                "referenceName": "DS_ADLS_Sink",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "table_name": "@item().table_name",
+                                                    "ingest_date": "@formatDateTime(variables('run_start_at'),'yyyy-MM-dd')"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "ifTrueActivities": [
+                                    {
+                                        "name": "Copy data1",
+                                        "type": "Copy",
+                                        "dependsOn": [],
+                                        "policy": {
+                                            "timeout": "0.12:00:00",
+                                            "retry": 0,
+                                            "retryIntervalInSeconds": 30,
+                                            "secureOutput": false,
+                                            "secureInput": false
+                                        },
+                                        "userProperties": [],
+                                        "typeProperties": {
+                                            "source": {
+                                                "type": "AzureSqlSource",
+                                                "sqlReaderQuery": {
+                                                    "value": "SELECT *\nFROM [@{item().source_schema}].[@{item().table_name}]\nWHERE [@{item().watermark_column}]\n      > '@{item().last_loaded_at}';",
+                                                    "type": "Expression"
+                                                },
+                                                "queryTimeout": "02:00:00",
+                                                "partitionOption": "None"
+                                            },
+                                            "sink": {
+                                                "type": "ParquetSink",
+                                                "storeSettings": {
+                                                    "type": "AzureBlobFSWriteSettings",
+                                                    "copyBehavior": "PreserveHierarchy"
+                                                },
+                                                "formatSettings": {
+                                                    "type": "ParquetWriteSettings"
+                                                }
+                                            },
+                                            "enableStaging": false,
+                                            "translator": {
+                                                "type": "TabularTranslator",
+                                                "typeConversion": true,
+                                                "typeConversionSettings": {
+                                                    "allowDataTruncation": true,
+                                                    "treatBooleanAsNumber": false
+                                                }
+                                            }
+                                        },
+                                        "inputs": [
+                                            {
+                                                "referenceName": "DS_SQL_Source",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "schema_name": "@item().source_schema",
+                                                    "table_name": "@item().table_name"
+                                                }
+                                            }
+                                        ],
+                                        "outputs": [
+                                            {
+                                                "referenceName": "DS_ADLS_Sink",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "table_name": "@item().table_name",
+                                                    "ingest_date": "@formatDateTime(variables('run_start_at'),'yyyy-MM-dd')"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "name": "Update Watermark",
+                                        "type": "SqlServerStoredProcedure",
+                                        "dependsOn": [
+                                            {
+                                                "activity": "Copy data1",
+                                                "dependencyConditions": [
+                                                    "Succeeded"
+                                                ]
+                                            }
+                                        ],
+                                        "policy": {
+                                            "timeout": "0.12:00:00",
+                                            "retry": 0,
+                                            "retryIntervalInSeconds": 30,
+                                            "secureOutput": false,
+                                            "secureInput": false
+                                        },
+                                        "userProperties": [
+                                            {
+                                                "name": "table_name",
+                                                "value": "@item().table_name"
+                                            },
+                                            {
+                                                "name": "run_start_at",
+                                                "value": "@variables('run_start_at')"
+                                            }
+                                        ],
+                                        "typeProperties": {
+                                            "storedProcedureName": "etl.usp_update_watermark",
+                                            "storedProcedureParameters": {
+                                                "table_name": {
+                                                    "value": {
+                                                        "value": "@item().table_name",
+                                                        "type": "Expression"
+                                                    }
+                                                },
+                                                "run_start_at": {
+                                                    "value": {
+                                                        "value": "@utcnow()",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "linkedServiceName": {
+                                            "referenceName": "LS_AzureSQL_Atliq",
+                                            "type": "LinkedServiceReference"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Set variable1",
+                "type": "SetVariable",
+                "dependsOn": [],
+                "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "variableName": "run_start_at",
+                    "value": {
+                        "value": "@utcnow()",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Lookup1",
+                "type": "Lookup",
+                "dependsOn": [
+                    {
+                        "activity": "Set variable1",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "AzureSqlSource",
+                        "queryTimeout": "02:00:00",
+                        "partitionOption": "None"
+                    },
+                    "dataset": {
+                        "referenceName": "DS_SQL_Source",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "schema_name": "etl",
+                            "table_name": "control_table"
+                        }
+                    },
+                    "firstRowOnly": false
+                }
+            }
+        ],
+        "variables": {
+            "run_start_at": {
+                "type": "String"
+            }
+        },
+        "annotations": [],
+        "lastPublishTime": "2026-08-21T10:22:54Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}

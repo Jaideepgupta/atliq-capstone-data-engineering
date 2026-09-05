@@ -1,0 +1,211 @@
+{
+    "name": "pl_sql_to_adls",
+    "properties": {
+        "activities": [
+            {
+                "name": "Copy_SQL_to_ADLS",
+                "type": "Copy",
+                "state": "Inactive",
+                "onInactiveMarkAs": "Succeeded",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "AzureSqlSource",
+                        "queryTimeout": "02:00:00",
+                        "partitionOption": "None"
+                    },
+                    "sink": {
+                        "type": "ParquetSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings",
+                            "copyBehavior": "PreserveHierarchy"
+                        },
+                        "formatSettings": {
+                            "type": "ParquetWriteSettings"
+                        }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                        "type": "TabularTranslator",
+                        "mappings": [
+                            {
+                                "source": {
+                                    "name": "product_id",
+                                    "type": "Int32",
+                                    "physicalType": "int"
+                                },
+                                "sink": {
+                                    "name": "product_id",
+                                    "type": "Int32",
+                                    "physicalType": "INT_32"
+                                }
+                            },
+                            {
+                                "source": {
+                                    "name": "product_name",
+                                    "type": "String",
+                                    "physicalType": "nvarchar"
+                                },
+                                "sink": {
+                                    "name": "product_name",
+                                    "type": "String",
+                                    "physicalType": "UTF8"
+                                }
+                            },
+                            {
+                                "source": {
+                                    "name": "category",
+                                    "type": "String",
+                                    "physicalType": "nvarchar"
+                                },
+                                "sink": {
+                                    "name": "category",
+                                    "type": "String",
+                                    "physicalType": "UTF8"
+                                }
+                            },
+                            {
+                                "source": {
+                                    "name": "unit_price",
+                                    "type": "Decimal",
+                                    "physicalType": "decimal",
+                                    "scale": 2,
+                                    "precision": 10
+                                },
+                                "sink": {
+                                    "name": "unit_price",
+                                    "type": "Decimal",
+                                    "physicalType": "DECIMAL"
+                                }
+                            },
+                            {
+                                "source": {
+                                    "name": "updated_at",
+                                    "type": "DateTime",
+                                    "physicalType": "datetime2"
+                                },
+                                "sink": {
+                                    "name": "updated_at",
+                                    "type": "DateTime",
+                                    "physicalType": "INT_96"
+                                }
+                            }
+                        ],
+                        "typeConversion": true,
+                        "typeConversionSettings": {
+                            "allowDataTruncation": true,
+                            "treatBooleanAsNumber": false
+                        }
+                    }
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_SQL_Source",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "schema_name": "@item().source_schema",
+                            "table_name": "@item().table_name"
+                        }
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_ADLS_Sink",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "table_name": "products",
+                            "ingest_date": "@formatDateTime(variables('run_start_at'),'yyyy-MM-dd')"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "ForEach1",
+                "type": "ForEach",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@createArray('customers','orders','order_items','payments','products')",
+                        "type": "Expression"
+                    },
+                    "activities": [
+                        {
+                            "name": "Copy data1",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "AzureSqlSource",
+                                    "queryTimeout": "02:00:00",
+                                    "partitionOption": "None"
+                                },
+                                "sink": {
+                                    "type": "ParquetSink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSWriteSettings",
+                                        "copyBehavior": "PreserveHierarchy"
+                                    },
+                                    "formatSettings": {
+                                        "type": "ParquetWriteSettings"
+                                    }
+                                },
+                                "enableStaging": false,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "DS_SQL_Source",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "schema_name": "dbo",
+                                        "table_name": "@item()"
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "DS_ADLS_Sink",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "table_name": "@item()",
+                                        "ingest_date": {
+                                            "value": "@formatDateTime(utcnow(),'yyyy-MM-dd')",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ],
+        "annotations": [],
+        "lastPublishTime": "2026-09-04T17:24:30Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}
