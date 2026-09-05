@@ -657,15 +657,6 @@ The report documents the implementation, architecture, design decisions, validat
 
 ---
 
-# 🚧 Known Gaps & Roadmap
-
-In the interest of accuracy, this repository version does **not** include the following. They are documented here rather than silently omitted:
-
-- **New vs. Returning Customers dashboard view** — planned as a follow-up: a customer cohort analysis (signup month vs. first/repeat purchase month) alongside the existing Revenue, Product, City, and Category views.
-- **Automated failure alerting** — the pipeline currently logs run status (start/end/status) to the Azure SQL audit table via `usp_log_pipeline_audit`, but does not yet push an active notification (email/webhook) on failure.
-
----
-
 # 🎓 Project Outcome
 
 This project demonstrates an end-to-end batch data engineering workflow covering:
