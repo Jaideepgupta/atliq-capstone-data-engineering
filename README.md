@@ -280,8 +280,8 @@ Key validation performed during the implementation:
 | Date referential integrity | 0 orphan rows |
 | Supplier cost completeness | 798 / 798 |
 | Gross revenue | 2,126,260.00 |
-| Supplier cost | 656,785.28 |
-| Gross profit | 1,469,474.72 |
+| Supplier cost (`quantity × unit cost`) | 1,363,271.87 |
+| Gross profit | 762,988.13 |
 | Profit reconciliation difference | 0.00 |
 
 These checks validate both structural integrity and the financial calculations used by the analytical model.
@@ -326,7 +326,7 @@ The results below were captured from `atliq.gold.fact_sales` after each full pip
 |---|---:|---:|---|
 | `fact_sales` row count | 798 | 798 | ✅ Match |
 | Total `gross_revenue` | 2,126,260.00 | 2,126,260.00 | ✅ Match |
-| Total supplier cost of sold units | 1,363,271.87 | 1,363,271.87 | ✅ Match |
+| Total supplier cost of sold units (`quantity × supplier_cost`) | 1,363,271.87 | 1,363,271.87 | ✅ Match |
 
 ### Result
 
