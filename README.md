@@ -1,96 +1,69 @@
 # AtliQ Commerce – End-to-End Batch Data Engineering
 
-> End-to-end batch data engineering project using Azure SQL, Azure Data Factory, ADLS Gen2, Azure Databricks, dbt Core, GitHub Actions and Microsoft Fabric.
+> **End-to-end batch data engineering project using Azure SQL, Azure Data Factory, ADLS Gen2, Azure Databricks, dbt Core, GitHub Actions and Microsoft Fabric.**
 
-## Overview
+## Project Overview
 
-This project implements a production-oriented nightly batch data pipeline for an e-commerce workload.
+This project builds an end-to-end analytical data platform for an e-commerce business.
 
-**Flow:**
+The solution separates the operational OLTP workload from analytical processing and reporting:
 
-`Azure SQL / CSV → Azure Data Factory → ADLS Gen2 Bronze → Databricks Silver → dbt Gold → Microsoft Fabric / Power BI`
+```text
+Azure SQL / CSV
+      ↓
+Azure Data Factory
+      ↓
+ADLS Gen2 – Bronze
+      ↓
+Azure Databricks – Silver
+      ↓
+dbt Core – Gold
+      ↓
+Microsoft Fabric / Power BI
+```
 
-The repository contains the implementation, dbt project, pipeline JSON exports, notebooks, dashboard artifacts, CI/CD configuration, milestone evidence, and a detailed project report.
+The repository contains the implementation, transformation code, pipeline exports, dashboard artifacts, CI/CD configuration, project evidence and detailed technical documentation.
 
-## Objectives
-
-- Extract operational commerce data from Azure SQL.
-- Ingest changing data using Azure Data Factory.
-- Store source-oriented data in ADLS Gen2.
-- Transform and enrich data using Azure Databricks.
-- Build analytical dimensions, facts and marts using dbt Core.
-- Automate the process as a nightly batch.
-- Expose curated Gold data to Microsoft Fabric.
-- Apply data-quality tests and CI/CD practices.
-- Design processing to be safe for retries and reruns.
-- Maintain implementation evidence in GitHub.
+---
 
 ## Architecture
 
-```text
-                 ┌─────────────────────┐
-                 │   Azure SQL (OLTP)   │
-                 │ customers            │
-                 │ products             │
-                 │ orders               │
-                 │ order_items          │
-                 │ payments             │
-                 └──────────┬──────────┘
-                            │
-        ┌───────────────────┴──────────────────┐
-        │                                      │
-        ▼                                      ▼
- Marketing Spend CSV                  Supplier Price CSV
-        │                                      │
-        └───────────────────┬──────────────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │ Azure Data Factory  │
-                 │ Ingestion & Control │
-                 └──────────┬──────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │     ADLS Gen2       │
-                 │   Bronze / Landing  │
-                 └──────────┬──────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │ Azure Databricks    │
-                 │ Bronze → Silver     │
-                 └──────────┬──────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │      dbt Core       │
-                 │ Silver → Gold       │
-                 └──────────┬──────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │ Microsoft Fabric    │
-                 │   / Power BI        │
-                 └─────────────────────┘
+![AtliQ Commerce Architecture](atliq_commerce_architecture.svg)
 
-                 GitHub → GitHub Actions
-                          → dbt CI
-```
+### Architecture Flow
 
-## Technology Stack
+| Layer | Technology | Responsibility |
+|---|---|---|
+| Source | Azure SQL | Operational OLTP data |
+| Source | CSV | Marketing spend and supplier pricing |
+| Ingestion | Azure Data Factory | Metadata-driven ingestion and orchestration |
+| Storage | ADLS Gen2 | Durable Bronze/raw storage |
+| Transformation | Azure Databricks | Bronze → Silver processing and enrichment |
+| Analytical Modeling | dbt Core | Silver → Gold dimensional models and tests |
+| Consumption | Microsoft Fabric / Power BI | Business analytics and dashboards |
+| DevOps | GitHub + GitHub Actions | Version control and CI/CD |
 
-| Technology | Purpose |
-|---|---|
-| Azure SQL Database | Operational OLTP source |
-| Azure Data Factory | Ingestion and orchestration |
-| ADLS Gen2 | Durable cloud data lake storage |
-| Azure Databricks | Distributed processing and transformation |
-| Unity Catalog | Data organization and governance |
-| dbt Core | SQL modeling, dependencies, testing and documentation |
-| Microsoft Fabric | Analytical consumption |
-| Power BI | Business reporting |
-| GitHub | Version control and evidence |
-| GitHub Actions | CI/CD validation |
+---
+
+## Business Problem
+
+The operational database supports the e-commerce application, but leadership needs analytical answers such as:
+
+- How is revenue changing over time?
+- Which products generate the most revenue?
+- Which cities contribute the most revenue?
+- How can customer and sales performance be analyzed?
+- How can supplier cost be used to understand profitability?
+
+Running heavy analytical queries directly against the live OLTP database can affect application performance. Therefore, this project creates a separate analytical processing path and synchronizes the data through a nightly batch.
+
+---
 
 ## Source Data
 
-### Azure SQL
+### Azure SQL – OLTP
+
+The operational database contains:
 
 - `customers`
 - `products`
@@ -102,85 +75,63 @@ The repository contains the implementation, dbt project, pipeline JSON exports, 
 
 `marketing_spend.csv`
 
-- `spend_date`
-- `channel`
-- `campaign`
-- `spend_amount`
-- `clicks`
+```text
+spend_date
+channel
+campaign
+spend_amount
+clicks
+```
 
 ### Supplier Price List
 
 `supplier_price_list.csv`
 
-- `product_id`
-- `product_name`
-- `supplier_name`
-- `supplier_cost`
-- `effective_date`
+```text
+product_id
+product_name
+supplier_name
+supplier_cost
+effective_date
+```
 
-Supplier pricing is used to enrich product/sales information.
+The supplier price list is used to enrich product/sales data for cost and profitability analysis.
 
-Marketing spend is modeled separately because the available data does not provide a reliable sale-to-campaign attribution key. A date-only join could duplicate sales when multiple campaigns or channels exist.
+Marketing spend is modeled separately from sales because the available source data does not contain a reliable sale-to-campaign attribution key. A date-only join could multiply sales when several campaigns/channels exist on the same date.
 
-## Data Layers
+---
 
-### Bronze
+# Data Engineering Architecture
 
-Source-oriented landing layer used to preserve ingested data before business transformation.
+## 1. OLTP – Azure SQL
 
-### Silver
+Azure SQL acts as the operational source system.
 
-Cleaned and enriched layer responsible for:
+The normalized OLTP model is designed for transactional workloads, with separate tables for customers, products, orders, order items and payments.
 
-- Standardization
-- Data-type handling
-- Transformation
-- Related-data joins
-- Product and supplier enrichment
-- Incremental fact processing
+The project also uses an ETL control table and watermark concepts for incremental ingestion.
 
-### Gold
+---
 
-Business-ready analytical layer containing dimensions, facts and marts.
+## 2. Ingestion – Azure Data Factory
 
-Key models include:
-
-- `dim_customer`
-- `dim_date`
-- `dim_product`
-- `fact_sales`
-- `fact_marketing_spend`
-- `int_sales_enriched`
-
-## Sales Fact Grain
-
-`fact_sales` has the grain:
-
-> **One row per order item**
-
-Important fields include:
-
-`order_item_id`, `order_id`, `customer_id`, `product_id`, `order_date`, `status`, `quantity`, `item_price`, `gross_revenue`, `product_name`, `category`, `unit_price`, `supplier_name`, `supplier_cost`.
-
-Explicitly defining grain prevents accidental double counting.
-
-## Azure Data Factory
+Azure Data Factory handles source extraction and orchestration.
 
 Main pipelines:
 
 ### `pl_sql_to_raw`
 
-Handles the SQL extraction/raw ingestion flow.
+SQL extraction and raw ingestion flow.
 
 ### `pl_sql_to_adls`
 
-Handles landing data into ADLS-oriented Bronze storage.
+Landing/orchestration flow for ADLS-oriented Bronze storage.
 
 ### `pl_master_batch`
 
-Master orchestration pipeline.
+Master pipeline coordinating the end-to-end batch process.
 
-High-level flow:
+High-level orchestration:
 
 ```text
 pl_sql_to_raw
@@ -190,78 +141,142 @@ pl_sql_to_adls
 Databricks_Bronze_to_Gold
 ```
 
-ADF JSON exports and screenshots are in:
+Pipeline JSON exports and implementation screenshots are available in:
 
 `evidence/M2_ADF/`
 
-## Databricks and Unity Catalog
+---
 
-The project uses Unity Catalog:
+## 3. Bronze – ADLS Gen2 / Databricks
 
-`atliq`
+Bronze is the source-oriented landing layer.
 
-Relevant schemas include:
+Its purpose is to:
 
-`atliq.bronze`, `atliq.silver`, `atliq.gold`, and `atliq.ci`.
+- Preserve ingested source data.
+- Separate ingestion from transformation.
+- Provide durable cloud storage.
+- Provide a repeatable input for downstream processing.
 
-Databricks performs distributed Bronze/Silver transformation and incremental processing.
+The SQL-derived Bronze data is stored as Parquet.
 
-Evidence is in:
+---
+
+## 4. Silver – Azure Databricks
+
+Azure Databricks performs the main distributed transformation and enrichment work.
+
+The Silver layer is responsible for:
+
+- Cleaning and standardizing source data.
+- Applying appropriate data types.
+- Transforming source structures.
+- Enriching sales with product information.
+- Enriching sales with supplier cost.
+- Applying incremental MERGE/upsert logic where appropriate.
+
+Databricks implementation evidence is available in:
 
 `evidence/M3_SILVER/`
 
-## dbt
+---
 
-The dbt project is in:
+# Gold Layer – dbt
 
-`dbt_project/`
+The analytical Gold layer is managed with dbt Core.
 
-### Model organization
+Unity Catalog:
 
 ```text
-models/
-├── staging/
-│   ├── stg_customers
-│   ├── stg_marketing_spend
-│   ├── stg_order_items
-│   ├── stg_orders
-│   ├── stg_payments
-│   ├── stg_products
-│   └── stg_supplier_price_list
-├── intermediate/
-│   └── int_sales_enriched
-└── mart/
-    ├── dim_customer
-    ├── dim_date
-    ├── dim_product
-    ├── fact_sales
-    └── fact_marketing_spend
+atliq
 ```
 
-Current implementation:
+Relevant schemas include:
+
+```text
+atliq.bronze
+atliq.silver
+atliq.gold
+atliq.ci
+```
+
+## Gold Model
+
+The central sales fact uses the grain:
+
+> **One row per order item**
+
+### Dimensions
+
+- `dim_customer`
+- `dim_product`
+- `dim_date`
+
+### Facts
+
+- `fact_sales`
+- `fact_marketing_spend`
+
+### Intermediate
+
+- `int_sales_enriched`
+
+### Staging
+
+- `stg_customers`
+- `stg_marketing_spend`
+- `stg_order_items`
+- `stg_orders`
+- `stg_payments`
+- `stg_products`
+- `stg_supplier_price_list`
+
+The current dbt implementation materializes staging and intermediate models as views in the `atliq.gold` schema, while the analytical marts are materialized as tables.
+
+---
+
+## dbt Validation
+
+The project currently contains:
 
 - **13 dbt models**
 - **18 data tests**
 - **7 sources**
-- `dbt run`: **13/13 models passed**
-- `dbt test`: **18/18 tests passed**
-- 0 warnings
-- 0 errors
-- 0 skipped tests
 
-Tests include not-null, uniqueness and relationship checks.
+Validation results:
 
-Evidence is in:
+```text
+dbt run
+13 / 13 models passed
+
+dbt test
+18 / 18 tests passed
+0 warnings
+0 errors
+0 skipped tests
+```
+
+Tests include:
+
+- Not-null checks
+- Uniqueness checks
+- Relationship checks
+
+dbt evidence is available in:
 
 `evidence/M4_GOLD_DBT/`
 
-## Data Quality and Reconciliation
+---
+
+# Data Quality & Reconciliation
+
+Key validation performed during the implementation:
 
 | Check | Result |
 |---|---:|
-| Customer duplicate check | 0 duplicates |
-| Product duplicate check | 0 duplicates |
-| Fact order-item uniqueness | 0 duplicates |
+| Customer duplicate check | 0 |
+| Product duplicate check | 0 |
+| Fact order-item uniqueness | 0 |
 | Date referential integrity | 0 orphan rows |
 | Supplier cost completeness | 798 / 798 |
 | Gross revenue | 2,126,260.00 |
@@ -269,9 +284,13 @@ Evidence is in:
 | Gross profit | 1,469,474.72 |
 | Profit reconciliation difference | 0.00 |
 
-## Nightly Automation
+These checks validate both structural integrity and the financial calculations used by the analytical model.
 
-The nightly process is configured to run at **2:00 AM**.
+---
+
+# Nightly Batch & Reliability
+
+The solution is designed as a nightly batch process.
 
 ```text
 Azure SQL / CSV
@@ -280,62 +299,172 @@ ADF ingestion
       ↓
 ADLS Bronze
       ↓
-Databricks Bronze → Silver → Gold
+Databricks Bronze → Silver
       ↓
-dbt
+dbt Gold
       ↓
 Fabric reporting
 ```
 
-The implementation is designed for safe reruns using:
+The scheduled processing is designed around retry-safe behavior:
 
-- Same-day Bronze overwrite behavior
-- Silver MERGE by business key
-- Gold rebuild from curated data
+- Same-day Bronze data can be overwritten on retry.
+- Silver fact processing uses MERGE/business-key logic.
+- Gold models are rebuilt from curated upstream data.
 
-Nightly evidence is in:
+The project also includes nightly execution evidence in:
 
 `evidence/M5_NIGHTLY_SYNC/`
 
-## Microsoft Fabric Dashboard
+> **Important:** A complete two-run idempotency proof should be retained as explicit evidence: run the full nightly flow twice and confirm that `fact_sales` row count and total `gross_revenue` remain identical.
 
-Dashboard:
+---
 
-**AtliQ Commerce Executive Sales Dashboard**
+# Microsoft Fabric / Power BI
 
-The report includes executive KPIs and analytical views such as:
+## Executive Dashboard
 
-- Monthly Revenue Trend
-- Top Products by Revenue
-- Top Cities analysis
-- Revenue by Category
+**AtliQ Commerce Executive Sales & Performance Dashboard**
 
-Fabric artifacts and screenshots are in:
+The dashboard includes executive KPIs and analytical views including:
+
+- Revenue trend
+- Top products by revenue
+- Top cities by revenue
+- Revenue by category
+
+Dashboard artifacts and evidence are available in:
 
 `evidence/M6_FABRIC/`
 
-## CI/CD
+Files include the editable Power BI/Fabric report artifact, PDF export, dashboard screenshot and data-model screenshot.
 
-GitHub Actions validates the dbt project.
+---
+
+# CI/CD – GitHub Actions
+
+The dbt project is integrated with GitHub Actions.
 
 Workflow:
 
 `.github/workflows/ci.yml`
 
-Databricks connection values are supplied through environment variables / GitHub Secrets rather than hard-coded credentials.
+The CI process:
 
-CI evidence is in:
+1. Checks out the repository.
+2. Installs the required dbt tooling.
+3. Uses Databricks connection values supplied through GitHub Secrets.
+4. Runs the dbt CI build.
+5. Uses dbt tests as data-quality gates.
+
+Secrets are not hard-coded in the repository.
+
+CI/CD evidence is available in:
 
 `evidence/M7_CICD/`
 
-## Repository Structure
+---
+
+# Evidence Gallery
+
+The repository contains implementation screenshots and artifacts for each milestone.
+
+## M2 – Azure Data Factory
+
+### Master Pipeline
+
+![ADF Master Pipeline](evidence/M2_ADF/pl_master_batch.png)
+
+### SQL → ADLS
+
+![ADF SQL to ADLS](evidence/M2_ADF/pl_sql_to_adls.png)
+
+### SQL → Raw
+
+![ADF SQL to Raw](evidence/M2_ADF/pl_sql_to_raw.png)
+
+[Open all M2 ADF evidence](evidence/M2_ADF/)
+
+---
+
+## M3 – Databricks Silver
+
+### Bronze → Silver Transformation
+
+![Databricks Bronze to Silver](evidence/M3_SILVER/01_Bronze_to_Silver.png)
+
+[Open all M3 Silver evidence](evidence/M3_SILVER/)
+
+---
+
+## M4 – dbt Gold
+
+### dbt DAG / Lineage
+
+![dbt DAG Lineage](evidence/M4_GOLD_DBT/DAG_Lineage.png)
+
+### dbt Sources
+
+![dbt Sources](evidence/M4_GOLD_DBT/dbt_Sources.png)
+
+### dbt Tests
+
+![dbt Test Results](evidence/M4_GOLD_DBT/dbt_test.png)
+
+[Open all M4 Gold/dbt evidence](evidence/M4_GOLD_DBT/)
+
+---
+
+## M5 – Nightly Execution
+
+### Nightly Run
+
+![Nightly Run](evidence/M5_NIGHTLY_SYNC/Nightly%20Run.png)
+
+[Open all M5 evidence](evidence/M5_NIGHTLY_SYNC/)
+
+---
+
+## M6 – Microsoft Fabric
+
+### Executive Dashboard
+
+![AtliQ Commerce Dashboard](evidence/M6_FABRIC/Dashboard.png)
+
+### Data Model
+
+![Fabric Data Model](evidence/M6_FABRIC/Data%20Model.png)
+
+[Open all M6 Fabric evidence](evidence/M6_FABRIC/)
+
+---
+
+## M7 – CI/CD
+
+GitHub Actions screenshots and supporting evidence are available in:
+
+`evidence/M7_CICD/`
+
+[Open all M7 CI/CD evidence](evidence/M7_CICD/)
+
+---
+
+# Repository Structure
 
 ```text
 .
 ├── .github/
 │   └── workflows/
 │       └── ci.yml
+│
 ├── dbt_project/
+│   ├── models/
+│   ├── tests/
+│   ├── macros/
+│   ├── analyses/
+│   ├── dbt_project.yml
+│   └── profiles.yml
+│
 ├── evidence/
 │   ├── M1_OLTP/
 │   ├── M2_ADF/
@@ -344,87 +473,100 @@ CI evidence is in:
 │   ├── M5_NIGHTLY_SYNC/
 │   ├── M6_FABRIC/
 │   └── M7_CICD/
+│
+├── atliq_commerce_architecture.svg
+├── Cdebasics_AtliQ_End_to_End_Data_Engineering_Project_Report.pdf
 ├── Cdebasics_AtliQ_End_to_End_Data_Engineering_Project_Report.docx
 ├── .gitignore
 └── README.md
 ```
 
-## Milestone Evidence
+---
 
-| Milestone | Evidence |
-|---|---|
-| M1 – OLTP | SQL implementation proof |
-| M2 – ADF | Pipeline JSON and screenshots |
-| M3 – Silver | Databricks notebook, HTML and screenshots |
-| M4 – Gold/dbt | Lineage, sources, tests and documentation |
-| M5 – Nightly Sync | Nightly execution proof |
-| M6 – Fabric | PBIX, PDF, dashboard and model screenshots |
-| M7 – CI/CD | GitHub Actions / CI screenshots |
+# Key Engineering Decisions
 
-## Key Engineering Decisions
+### Why separate OLTP and analytics?
 
-### OLTP vs OLAP
-
-Azure SQL is kept as the operational source while analytical processing is performed downstream. This separates transactional workloads from reporting and transformation workloads.
+The operational database is optimized for transactions, while the downstream analytical platform is optimized for reporting and aggregation. This protects the application workload from heavy analytical queries.
 
 ### Why ADLS Gen2?
 
-ADLS provides durable cloud storage independently of compute. Data remains available even when compute resources are stopped.
+ADLS provides durable cloud storage independently of compute. Data can remain available even when Databricks compute is stopped.
 
 ### Why Databricks?
 
-Databricks provides scalable processing for transformation, enrichment and incremental workloads.
+Databricks provides scalable distributed processing for Bronze/Silver transformation, enrichment and incremental workloads.
 
 ### Why dbt?
 
-dbt provides structured SQL modeling, dependency management, testing and documentation for the analytical layer.
+dbt provides SQL-based analytical modeling, dependency management, testing and documentation.
 
 ### Why ADF?
 
-ADF provides managed ingestion and orchestration across the source, storage and transformation components.
+ADF provides managed ingestion and orchestration between the operational source, storage and transformation workloads.
 
 ### Why GitHub Actions?
 
-CI automatically validates dbt changes and provides a quality gate for the project.
+GitHub Actions provides automated CI validation so dbt changes can be tested consistently.
 
-## Issues Faced and Resolutions
+### Why not directly join sales and marketing by date?
+
+Because several campaigns or channels may exist on the same date. Without a sale-to-campaign attribution key, a direct join can duplicate sales and produce incorrect metrics.
+
+---
+
+# Issues Faced & Resolutions
 
 ### PowerShell execution policy
 
-Local dbt activation/scripts were initially blocked. A process-scoped PowerShell execution-policy change was used.
+Local dbt activation/scripts were initially blocked.
 
-### dbt–Databricks authentication
+**Resolution:** Used a process-scoped PowerShell execution-policy change.
 
-The initial connection required correction of environment variables and Databricks host configuration.
+### dbt–Databricks connection
+
+The initial dbt connection required correction of the environment variables and Databricks host configuration.
+
+**Resolution:** Configured the connection through environment variables and validated it with `dbt debug`.
 
 ### Credential security
 
-A Databricks token was accidentally exposed during troubleshooting. It was replaced, and the project uses environment variables / GitHub Secrets instead of committing the actual credential.
+A Databricks token was accidentally exposed during troubleshooting.
+
+**Resolution:** The credential was replaced. The repository uses environment variables and GitHub Secrets rather than storing the actual credential.
 
 ### GitHub Actions authentication
 
-CI initially failed because the Databricks authentication secret was stale. The secret was updated and the workflow subsequently passed.
+CI initially failed because the Databricks authentication secret was stale.
+
+**Resolution:** The GitHub secret was updated and the CI workflow subsequently passed.
 
 ### Catalog naming
 
-The project uses the Unity Catalog name `atliq`. Consistent naming avoids object-not-found errors.
+The Unity Catalog used by the project is:
 
-### Sales and marketing integration
+```text
+atliq
+```
 
-A date-only sales/marketing join could duplicate sales. Marketing spend is therefore maintained as a separate fact/mart until reliable attribution data is available.
+Consistent catalog naming avoids object-not-found errors.
 
-## Security
+---
 
-**Never commit:**
+# Security
+
+Never commit:
 
 - Databricks tokens
 - Passwords
 - `.env` files containing secrets
-- Connection files containing actual credentials
+- Connection strings containing credentials
 
-Use environment variables, GitHub Secrets, or an appropriate secret-management solution.
+Use environment variables, GitHub Secrets or an appropriate secret-management service.
 
-## Local dbt Commands
+---
+
+# Local dbt Commands
 
 From the dbt project directory:
 
@@ -438,21 +580,31 @@ dbt build
 
 Connection credentials should be supplied securely through environment variables.
 
-## Detailed Documentation
+---
 
-For the complete implementation walkthrough, architecture explanation, troubleshooting history and learning notes, see:
+# Project Documentation
 
-`Cdebasics_AtliQ_End_to_End_Data_Engineering_Project_Report.docx`
+## Detailed Project Report
 
-## Project Outcome
+The repository contains both PDF and Word versions of the detailed project documentation.
+
+- **PDF:** `Cdebasics_AtliQ_End_to_End_Data_Engineering_Project_Report.pdf`
+- **DOCX:** `Cdebasics_AtliQ_End_to_End_Data_Engineering_Project_Report.docx`
+
+The report documents the implementation, architecture, design decisions, validation, troubleshooting and learning outcomes.
+
+---
+
+# Project Outcome
 
 This project demonstrates an end-to-end batch data engineering workflow covering:
 
 - OLTP data modeling
 - Incremental ingestion
-- Cloud data lake storage
-- Bronze/Silver/Gold architecture
-- Distributed data processing
+- ADLS Gen2 data lake storage
+- Bronze / Silver / Gold architecture
+- Azure Databricks transformation
+- Unity Catalog
 - Dimensional modeling
 - dbt transformation and testing
 - Data-quality validation
@@ -460,11 +612,16 @@ This project demonstrates an end-to-end batch data engineering workflow covering
 - Retry/idempotency-oriented processing
 - Microsoft Fabric analytics
 - Git version control
-- CI/CD automation
-- Technical documentation and evidence management
+- GitHub Actions CI/CD
+- Technical documentation
+- Implementation evidence
 
-## Author
+---
+
+# Author
 
 **Jaideep Gupta**
 
-End-to-end data engineering capstone project focused on Azure, Databricks, dbt, Microsoft Fabric and analytics engineering practices.
+Data Engineering / Analytics Engineering Portfolio Project
+
+**Technologies:** Azure SQL • Azure Data Factory • ADLS Gen2 • Databricks • Unity Catalog • dbt • Microsoft Fabric • Power BI • GitHub Actions
