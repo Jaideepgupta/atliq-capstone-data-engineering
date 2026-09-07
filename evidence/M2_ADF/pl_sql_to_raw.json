@@ -198,7 +198,7 @@
                                                 },
                                                 "run_start_at": {
                                                     "value": {
-                                                        "value": "@utcnow()",
+                                                        "value": "@pipeline().parameters.run_start_at",
                                                         "type": "Expression"
                                                     }
                                                 }
@@ -269,6 +269,11 @@
                 }
             }
         ],
+        "parameters": {
+            "run_start_at": {
+                "type": "string"
+            }
+        },
         "variables": {
             "run_start_at": {
                 "type": "String"

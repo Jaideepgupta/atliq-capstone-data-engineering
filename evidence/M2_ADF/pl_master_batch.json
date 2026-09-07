@@ -15,7 +15,10 @@
                         "referenceName": "pl_sql_to_raw",
                         "type": "PipelineReference"
                     },
-                    "waitOnCompletion": true
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "run_start_at": "@variables('run_start_at')"
+                    }
                 }
             },
             {
@@ -69,8 +72,13 @@
                 }
             }
         ],
+        "variables": {
+            "run_start_at": {
+                "type": "String"
+            }
+        },
         "annotations": [],
-        "lastPublishTime": "2026-08-30T09:25:09Z"
+        "lastPublishTime": "2026-09-05T11:24:52Z"
     },
     "type": "Microsoft.DataFactory/factories/pipelines"
 }
