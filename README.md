@@ -42,7 +42,6 @@
 - [Local dbt Commands](#-local-dbt-commands)
 - [Project Documentation](#-project-documentation)
 - [Implementation Summary](#-implementation-summary)
-- [Known Gaps & Roadmap](#-known-gaps--roadmap)
 - [Project Outcome](#-project-outcome)
 - [Author](#-author)
 
@@ -229,7 +228,10 @@ The Silver layer is responsible for:
 - 🔄 Transforming source structures.
 - 🔗 Enriching sales with product information.
 - 💵 Enriching sales with supplier cost.
-- ♻️ Applying incremental MERGE/upsert logic where appropriate.
+- ♻️ Applying incremental MERGE logic:
+  - `orders`: latest record selected using `updated_at DESC`
+  - `payments`: latest record selected using `updated_at DESC`
+  - `order_items`: insert-only using `created_at` because line items do not change after creation
 
 Databricks implementation evidence is available in:
 `evidence/M3_SILVER/`
@@ -404,7 +406,7 @@ Dashboard artifacts and evidence are available in: `evidence/M6_FABRIC/`
 
 Files include the editable Power BI/Fabric report artifact, PDF export, dashboard screenshot and data-model screenshot.
 
-> 📝 **Not yet implemented:** a **New vs. Returning Customers** view (customer cohort by signup month vs. first/repeat purchase month) — see [Known Gaps & Roadmap](#-known-gaps--roadmap).
+> 📝 **Not yet implemented:** a **New vs. Returning Customers** view (customer cohort by signup month vs. first/repeat purchase month).
 
 ---
 
